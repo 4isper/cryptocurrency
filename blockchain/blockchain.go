@@ -13,9 +13,13 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"math/big"
+	mrand "math/rand"
+	"fmt"
 	"os"
 	"sort"
 	"time"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type BlockChain struct {
@@ -346,7 +350,7 @@ func ProofOfWork(blockChain []byte, diff uint8, ch chan bool) uint64{
 		nonce = uint64(mrand.Intn(math.MaxUint32))
 		hash []byte
 	)
-	Target.Lsh(Target, 256 - diff)
+	Target.Lsh(Target, 256 - uint(diff))
 	for nonce < math.MaxUint64{
 		select {
 			case <-ch:
@@ -362,7 +366,7 @@ func ProofOfWork(blockChain []byte, diff uint8, ch chan bool) uint64{
 					[]byte{},
 				))
 				if DEBUG {
-					fmt.Println("\rMining: %s", Base64Encode(hash))
+					fmt.Printf("\rMining: %s", Base64Encode(hash))
 				}
 				intHash.SetBytes(hash)
 				if intHash.Cmp(Target) == -1{
@@ -441,7 +445,7 @@ func (chain *BlockChain) LastHash() []byte {
 	var hash string
 	row := chain.DB.QueryRow("SELECT Hash FROM BlockChain ORDER BY Id DESC")
 	row.Scan(&hash)
-	return Base64Encode(hash)
+	return Base64Decode(hash)
 }
 
 func (block *Block) IsValid(chain *BlockChain) bool{
@@ -499,7 +503,46 @@ func (block *Block) proofIsValid() bool {
 }
 
 func (block *Block) mappingIsValid() bool {
-	
+	for addr := range block.Mapping {
+		if addr == STRORAGE_CHAIN {
+			continue
+		}
+		flag := false
+		for _, tx := range block.Transactions{
+			if tx.Sender == addr || tx.Receiver == addr {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			return false
+		}
+	}
+	return true
+}
+
+func (block *Block) timeIsValid(chain *BlockChain, index uint64) bool {
+	btime, err := time.Parse(time.RFC3339, block.TimeStamp)
+	if err != nil {
+		return false
+	}
+	diff := time.Now().Sub(btime)
+	if diff < 0{
+		return false
+	}
+	var sblock string
+	row := chain.DB.QueryRow("SELECT Block FROM BlockChain WHERE Hash=$1", Base64Encode(block.PrevHash))
+	row.Scan(&sblock)
+	lblock := DeserializeBlock(sblock)
+	if lblock == nil{
+		return false
+	}
+	ltime, err := time.Parse(time.RFC3339, lblock.TimeStamp)
+	if err != nil {
+		return false
+	}
+	diff = btime.Sub(ltime)
+	return diff > 0
 }
 
 func SerializeTX(tx *Transaction) string {
@@ -588,7 +631,7 @@ func ToBytes(num uint64) []byte {
 	return data.Bytes()
 }
 
-func Sign(priv *rsa.PublicKey, data []byte) []byte{
+func Sign(priv *rsa.PrivateKey, data []byte) []byte{
 	signdata, err := rsa.SignPSS(rand.Reader, priv, crypto.SHA256, data, nil)
 	if err != nil{
 		return nil
@@ -620,7 +663,7 @@ func (chain *BlockChain) AddBlock(block *Block){
 	)
 }
 
-func Base64Encode(data []byte) []byte{
+func Base64Encode(data []byte) string{
 	return base64.StdEncoding.EncodeToString(data)
 }
 

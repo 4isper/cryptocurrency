@@ -16,7 +16,7 @@ const (
 	ADDRESS = ":8080"
 )
 
-func main() {
+func init() {
 	var (
 		res = new(nt.Package)
 		msg = "Hello, World!"
