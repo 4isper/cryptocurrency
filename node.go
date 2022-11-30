@@ -66,22 +66,22 @@ func init() {
 		arg := os.Args[i]
 		switch {
 		case strings.HasPrefix(arg, "-serve:"):
-			serveStr = strings.Replace(arg, "-serve", "", 1)
+			serveStr = strings.Replace(arg, "-serve:", "", 1)
 			serveExist = true
 		case strings.HasPrefix(arg, "-loadaddr:"):
-			addrStr = strings.Replace(arg, "-loadaddr", "", 1)
+			addrStr = strings.Replace(arg, "-loadaddr:", "", 1)
 			addrExist = true
 		case strings.HasPrefix(arg, "-newuser:"):
-			userNewStr = strings.Replace(arg, "-newuser", "", 1)
+			userNewStr = strings.Replace(arg, "-newuser:", "", 1)
 			userNewExist = true
 		case strings.HasPrefix(arg, "-newchain:"):
-			chainNewStr = strings.Replace(arg, "-newchain", "", 1)
+			chainNewStr = strings.Replace(arg, "-newchain:", "", 1)
 			chainNewExist = true
 		case strings.HasPrefix(arg, "-loaduser:"):
-			userLoadStr = strings.Replace(arg, "-loaduser", "", 1)
+			userLoadStr = strings.Replace(arg, "-loaduser:", "", 1)
 			userLoadExist = true
 		case strings.HasPrefix(arg, "-loadchain:"):
-			chainLoadStr = strings.Replace(arg, "-loadchain", "", 1)
+			chainLoadStr = strings.Replace(arg, "-loadchain:", "", 1)
 			chainLoadExist = true
 		}
 	}

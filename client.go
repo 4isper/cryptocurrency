@@ -23,11 +23,12 @@ const (
 	GET_BLOCK
 	GET_LHASH
 	GET_BLNCE
+	GET_CSIZE
 )
 
 func init() {
 	if len(os.Args) < 2 {
-		panic("failed 1")
+		panic("failed: len(os.Args) < 2")
 	}
 	var (
 		addrStr     = ""
@@ -43,25 +44,25 @@ func init() {
 		arg := os.Args[i]
 		switch {
 		case strings.HasPrefix(arg, "-loadaddr:"):
-			addrStr = strings.Replace(arg, "-loadaddr", "", 1)
+			addrStr = strings.Replace(arg, "-loadaddr:", "", 1)
 			addrExist = true
 		case strings.HasPrefix(arg, "-newuser:"):
-			userNewStr = strings.Replace(arg, "-newuser", "", 1)
+			userNewStr = strings.Replace(arg, "-newuser:", "", 1)
 			userNewExist = true
 		case strings.HasPrefix(arg, "-loaduser:"):
-			userLoadStr = strings.Replace(arg, "-loaduser", "", 1)
+			userLoadStr = strings.Replace(arg, "-loaduser:", "", 1)
 			userLoadExist = true
 		}
 	}
 	if !(userNewExist || userLoadExist) || !addrExist {
-		panic("failed 2")
+		panic("failed: !(userNewExist || userLoadExist) || !addrExist")
 	}
 	err := json.Unmarshal([]byte(readFile(addrStr)), &Addresses)
 	if err != nil {
-		panic("failed 3")
+		panic("failed: load addresses")
 	}
 	if len(Addresses) == 0 {
-		panic("failed 4")
+		panic("failed: len(Addresses) == 0")
 	}
 	if userNewExist {
 		User = userNew(userNewStr)
@@ -70,7 +71,7 @@ func init() {
 		User = userLoad(userLoadStr)
 	}
 	if User == nil {
-		panic("failed 5")
+		panic("failed: load user")
 	}
 }
 
@@ -127,29 +128,67 @@ func handleClient(){
 			os.Exit(0)
 		case "/user":
 			if len(splited) < 2{
-				fmt.Println("len(user) < 2")
+				fmt.Println("failed: len(user) < 2 \n")
 				continue
 			}
 			switch splited[1]{
 			case "address": userAddress()
 			case "purse": userPurse()
 			case "balance": userBalance()
+			default:
+				fmt.Println("command undefined\n")
 			}
 		case "/chain":
 			if len(splited) < 2{
-				fmt.Println("len(chain) < 2")
+				fmt.Println("failed: len(chain) < 2 \n")
 				continue
 			}
 			switch splited[1]{
 			case "print": chainPrint()
 			case "tx": chainTX(splited[1:])
 			case "balance": chainBalance(splited[1:])
+			case "block": chainBlock(splited[1:])
+			case "size": chainSize()
+			default:
+				fmt.Println("command undefined\n")
 			}
 		default:
 			fmt.Println("undefined command\n") 
 		}
 	}
 }
+
+func chainSize() {
+	res := nt.Send(Addresses[0], &nt.Package{
+		Option: GET_CSIZE,
+	})
+	if res == nil || res.Data == "" {
+		fmt.Println("failed: getSize\n")
+		return
+	}
+	fmt.Printf("Size: %s blocks\n\n", res.Data)
+}
+
+func chainBlock(splited []string) {
+	if len(splited) != 2 {
+		fmt.Println("failed: len(splited) != 2\n")
+		return
+	}
+	num, err := strconv.Atoi(splited[1])
+	if err != nil {
+		fmt.Println("failed: strconv.Atoi(num)\n")
+		return
+	}
+	res := nt.Send(Addresses[0], &nt.Package{
+		Option: GET_BLOCK,
+		Data:   fmt.Sprintf("%d", num-1),
+	})
+	if res == nil || res.Data == "" {
+		fmt.Println("failed: getBlock\n")
+		return
+	}
+	fmt.Printf("[%d] => %s\n", num, res.Data)
+} 
 
 func inputString(begin string) string {
 	fmt.Print(begin)
@@ -223,7 +262,7 @@ func chainTX(splited []string){
 
 func chainBalance(splited []string){
 	if len(splited) != 2{
-		fmt.Println("len(splited) != 2\n")
+		fmt.Println("fail: len(splited) != 2\n")
 		return
 	}
 	printBalance(splited[1])
